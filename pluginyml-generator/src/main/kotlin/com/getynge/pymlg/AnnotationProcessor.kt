@@ -125,12 +125,7 @@ class AnnotationProcessor: AbstractProcessor() {
             commands.add(command)
         }
 
-        // FIXME: The below does not run if the annotated class has multiple @PluginPermission annotations
         for(element in roundEnv.getElementsAnnotatedWith(PluginPermission::class.java)) {
-            var name: String
-            var description: String
-            var default: String
-
             if(element.kind != ElementKind.CLASS) {
                 throw AnnotationException("@PluginPermission may only be used on classes")
             }
@@ -141,15 +136,32 @@ class AnnotationProcessor: AbstractProcessor() {
 
             val annotation = element.getAnnotation(PluginPermission::class.java)!!
 
-            name = annotation.name
-            description = annotation.description
-            default = annotation.default
-
-            val permission = PermissionInfo(name, description, default)
-            messager.printMessage(Diagnostic.Kind.NOTE, "found permission: $permission")
-
-            permissions.add(permission)
+            processPermission(annotation)
         }
+
+        for(element in roundEnv.getElementsAnnotatedWith(PluginPermissions::class.java)) {
+            if(element.kind != ElementKind.CLASS) {
+                throw AnnotationException("@PluginPermission may only be used on classes")
+            }
+
+            if(element.getAnnotation(Plugin::class.java) == null) {
+                throw AnnotationException("@PluginPermission may only be used on classes annotated with @Plugin")
+            }
+
+            val annotation = element.getAnnotation(PluginPermissions::class.java)!!
+
+            for(child in annotation.value) {
+                processPermission(child)
+            }
+        }
+    }
+
+    private fun processPermission(permission: PluginPermission) {
+        val permissionInfo = PermissionInfo(permission.name, permission.description, permission.default)
+
+        messager.printMessage(Diagnostic.Kind.NOTE, "found permission: $permissionInfo")
+
+        permissions.add(permissionInfo)
     }
 
     private fun writePluginyml() {
