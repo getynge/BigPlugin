@@ -19,8 +19,8 @@ abstract class CommandModule {
 
     @Binds
     @IntoMap
-    @StringKey("wubub")
+    @StringKey("feed")
     @Permission("bigplugin.utils")
-    @Description("does a wubub")
-    abstract fun wubub(wubub: Wubub): CommandExecutor
+    @Description("refills hunger meter")
+    abstract fun feed(feed: Feed): CommandExecutor
 }

@@ -30,7 +30,7 @@ class MainClass: JavaPlugin() {
         }
 
         for(listener in listeners) {
-            Bukkit.getPluginManager().registerEvents(listener, this@MainClass)
+            Bukkit.getPluginManager().registerEvents(listener, this)
         }
 
         logger.info("all commands registered")

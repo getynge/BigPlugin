@@ -22,9 +22,16 @@ class Spondoolie @Inject constructor(): CommandExecutor {
 }
 
 @Singleton
-class Wubub @Inject constructor(): CommandExecutor {
+class Feed @Inject constructor(): CommandExecutor {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        TODO("Not yet implemented")
-    }
+        if(sender !is Player) {
+            sender.sendMessage(PLAYER_ONLY_MESSAGE)
+            return false
+        }
 
+        sender.foodLevel = 20
+        sender.saturation = 20.0f
+
+        return true
+    }
 }
