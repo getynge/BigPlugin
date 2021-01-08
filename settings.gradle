@@ -1,0 +1,5 @@
+rootProject.name = 'BigPlugin'
+
+include 'annotations'
+include 'bigplugin'
+include 'pluginyml-generator'
