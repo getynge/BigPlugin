@@ -6,6 +6,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
+import jdk.jshell.Diag
 import org.bukkit.command.CommandExecutor
 import java.lang.Exception
 import java.lang.reflect.Type
@@ -24,6 +25,8 @@ import javax.tools.StandardLocation
 @SupportedAnnotationTypes("com.getynge.pymlg.*")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class AnnotationProcessor: AbstractProcessor() {
+    private val commandExecutorName = CommandExecutor::class.java.toString().split(" ")[1]
+
     private var processedPlugin: PluginInfo? = null
     private var commands = arrayListOf<Command>()
     private var commandPackage = ""
@@ -112,8 +115,7 @@ class AnnotationProcessor: AbstractProcessor() {
 
             val typeElement = element as TypeElement
 
-            if(typeElement.interfaces.filter { it.toString() != CommandExecutor::class.java.toString().split(" ")[1] }
-                    .isNotEmpty()) {
+            if(!typeElement.interfaces.any { it.toString() == commandExecutorName }) {
                 continue
             }
 
