@@ -231,7 +231,7 @@ class AnnotationProcessor: AbstractProcessor() {
         }
 
         val re = Regex("[^A-Za-z]")
-        val name = "${commandPackage.split(".").last().capitalize()}Module"
+        val name = "Generated${commandPackage.split(".").last().capitalize()}Module"
 
         val typeSpecBuilder = TypeSpec.classBuilder(name)
             .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
