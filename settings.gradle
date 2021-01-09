@@ -1,5 +1,5 @@
 rootProject.name = 'BigPlugin'
 
-include 'annotations'
 include 'bigplugin'
-include 'pluginyml-generator'
+include 'pluginyml-dagger-annotations'
+include 'pluginyml-dagger-generator'

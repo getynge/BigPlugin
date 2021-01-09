@@ -1,12 +1,19 @@
 package com.getynge.pymlg
 
 import com.google.auto.service.AutoService
+import com.squareup.javapoet.*
+import dagger.Binds
+import dagger.Module
+import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
 import org.bukkit.command.CommandExecutor
+import java.lang.Exception
+import java.lang.reflect.Type
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
+import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.util.Elements
 import javax.lang.model.util.Types
@@ -14,17 +21,19 @@ import javax.tools.Diagnostic
 import javax.tools.StandardLocation
 
 @AutoService(Processor::class)
-@SupportedAnnotationTypes("com.getynge.pymlg.*", "dagger.multibindings.StringKey")
+@SupportedAnnotationTypes("com.getynge.pymlg.*")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class AnnotationProcessor: AbstractProcessor() {
     private var processedPlugin: PluginInfo? = null
     private var commands = arrayListOf<Command>()
+    private var commandPackage = ""
+    private var javaWritten = false
     private var permissions = arrayListOf<PermissionInfo>()
 
-    lateinit var elementUtils: Elements
-    lateinit var typeUtils: Types
-    lateinit var filer: Filer
-    lateinit var messager: Messager
+    private lateinit var elementUtils: Elements
+    private lateinit var typeUtils: Types
+    private lateinit var filer: Filer
+    private lateinit var messager: Messager
 
     @Synchronized
     override fun init(processingEnv: ProcessingEnvironment) {
@@ -50,7 +59,11 @@ class AnnotationProcessor: AbstractProcessor() {
             doProcess(annotations, roundEnv)
         } catch(e: AnnotationException) {
             messager.printMessage(Diagnostic.Kind.ERROR, "Failed to process annotations due to error: ${e.message}")
+        } catch(e: Exception) {
+            messager.printMessage(Diagnostic.Kind.ERROR, "Failed to process annotations due to error: ${e.message}")
         }
+
+        writeJava()
 
         return false
     }
@@ -81,42 +94,54 @@ class AnnotationProcessor: AbstractProcessor() {
             processedPlugin = pluginInfo
         }
 
-        for(element in roundEnv.getElementsAnnotatedWith(StringKey::class.java)) {
+        for(element in roundEnv.getElementsAnnotatedWith(PluginCommand::class.java)) {
             var name: String
             var description: String
             var usage: String
             var permission: String
             var packageName: String
+            var fullPackageName: String
 
-            val nameAnnotation = element.getAnnotation(StringKey::class.java)
-            val descriptionAnnotation = element.getAnnotation(Description::class.java)
-            val usageAnnotation = element.getAnnotation(Usage::class.java)
-            val permissionAnnotation = element.getAnnotation(Permission::class.java)
+            val pluginAnnotation = element.getAnnotation(PluginCommand::class.java)
 
-            if(element.kind != ElementKind.METHOD) {
+            if(element.kind != ElementKind.CLASS || element.modifiers.contains(Modifier.ABSTRACT)) {
                 continue
             }
 
-            val executableElement = element as ExecutableElement
+            messager.printMessage(Diagnostic.Kind.NOTE, "passed first filter")
 
-            // TODO: figure out if there's a less horrible way to do this
-            if(executableElement.returnType.toString() != CommandExecutor::class.java.toString().split(" ")[1]){
+            val typeElement = element as TypeElement
+
+            if(typeElement.interfaces.filter { it.toString() != CommandExecutor::class.java.toString().split(" ")[1] }
+                    .isNotEmpty()) {
                 continue
             }
+
+
+            messager.printMessage(Diagnostic.Kind.NOTE, "passed second filter")
 
             var enclosing = element
             while(enclosing.kind != ElementKind.PACKAGE) {
                 enclosing = enclosing.enclosingElement
             }
             packageName = enclosing.simpleName.toString()
+            fullPackageName = enclosing.toString()
 
-            name = nameAnnotation.value
-            description = descriptionAnnotation?.description ?: name
-            usage = usageAnnotation?.usage ?: "/<command>"
-            permission = permissionAnnotation?.name ?: "${packageName}.${name}"
+            name = pluginAnnotation.name
+            description = pluginAnnotation.description
+            usage = pluginAnnotation.usage
+            permission = if(pluginAnnotation.permission != "") pluginAnnotation.permission else "$packageName.$name"
 
-            val command = Command(name, usage, description, permission)
+            val command =  Command(fullPackageName, typeElement.simpleName.toString(), name, usage, description, permission)
             messager.printMessage(Diagnostic.Kind.NOTE, "found command: $command")
+
+            if(commandPackage == "") {
+                commandPackage = fullPackageName
+            }
+
+            if(commandPackage != "" && commandPackage != fullPackageName) {
+                throw AnnotationException("you may not have commands in more than one package")
+            }
 
             commands.add(command)
         }
@@ -195,5 +220,46 @@ class AnnotationProcessor: AbstractProcessor() {
         }
 
         writer.close()
+    }
+
+    // TODO: update writer to support commands in multiple packages
+    private fun writeJava() {
+        if(commandPackage == "" || javaWritten) {
+            return
+        }
+
+        val re = Regex("[^A-Za-z]")
+        val name = "${commandPackage.split(".").last().capitalize()}Module"
+
+        val typeSpecBuilder = TypeSpec.classBuilder(name)
+            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+            .addAnnotation(Module::class.java)
+
+        for(command in commands) {
+            val sanitizedName = re.replace(command.name, "")
+
+            val annotationSpec = AnnotationSpec.builder(StringKey::class.java)
+                .addMember("value", "\"${command.name}\"")
+                .build()
+
+            val methodSpec = MethodSpec.methodBuilder(sanitizedName)
+                .addAnnotation(Binds::class.java)
+                .addAnnotation(IntoMap::class.java)
+                .addAnnotation(annotationSpec)
+                .addModifiers(Modifier.ABSTRACT)
+                .returns(ClassName.get(CommandExecutor::class.java))
+                .addParameter(ClassName.get(command.pkg, command.type), sanitizedName)
+                .build()
+
+            typeSpecBuilder.addMethod(methodSpec)
+        }
+
+        val typeSpec = typeSpecBuilder.build()
+
+        val javaFile = JavaFile.builder(commandPackage, typeSpec).build()
+
+        javaFile.writeTo(filer)
+
+        javaWritten = true
     }
 }

@@ -1,14 +1,14 @@
 package com.getynge.bigplugin
 
-import com.getynge.bigplugin.commands.CommandModule
 import com.getynge.bigplugin.listeners.ListenerModule
 import com.getynge.bigplugin.util.UtilityModule
+import com.getynge.bigplugin.commands.CommandsModule
 import dagger.BindsInstance
 import dagger.Component
 import javax.inject.Singleton
 
 @Singleton
-@Component(modules = [UtilityModule::class, CommandModule::class, ListenerModule::class] )
+@Component(modules = [UtilityModule::class, ListenerModule::class, CommandsModule::class] )
 interface CoreFactory {
     fun inject(mainClass: MainClass)
 

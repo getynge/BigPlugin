@@ -1,6 +1,5 @@
 package com.getynge.bigplugin.listeners
 
-import com.getynge.pymlg.PluginPermission
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
