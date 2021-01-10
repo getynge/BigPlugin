@@ -2,6 +2,7 @@ package com.getynge.bigplugin
 
 import com.getynge.pymlg.Plugin
 import com.getynge.pymlg.PluginPermission
+import com.getynge.pymlg.PluginPermissions
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandExecutor
 import org.bukkit.event.Listener
@@ -13,6 +14,8 @@ import javax.inject.Singleton
 @Singleton
 @Plugin(name = "BigPlugin", version = "0.1")
 @PluginPermission(name = "bigplugin.utils", description = "gives access to utility commands", default = "op")
+@PluginPermission(name = "bigplugin.playerutils", description = "gives access to non-admin utility commands")
+@PluginPermission(name = "bigplugin.adminabuse", description = "gives access to admin abuse commands", default = "op")
 class MainClass: JavaPlugin() {
     @Inject lateinit var commands: Map<String, CommandExecutor>
     @Inject lateinit var listeners: Set<Listener>
